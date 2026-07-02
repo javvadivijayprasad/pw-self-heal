@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pw-self-heal report · demo run</title>
+<style>
+  :root{--bg:#fff;--surface:#f7f6f2;--card:#fff;--text:#1a1a18;--muted:#6b6a64;--border:#e6e4dc;--ok-bg:#e1f5ee;--ok-fg:#0f6e56;}
+  @media(prefers-color-scheme:dark){:root{--bg:#1a1a18;--surface:#232320;--card:#202018;--text:#ece9e0;--muted:#a3a299;--border:#33332e;--ok-bg:#0f3d31;--ok-fg:#5dcaa5;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5;padding:28px;max-width:1000px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+  .metric{background:var(--surface);border-radius:10px;padding:14px 16px}
+  .metric .label{font-size:12px;color:var(--muted)}
+  .metric .num{font-size:24px;font-weight:600;margin-top:2px}
+  .chips{margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:500;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--border)}
+  td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .small{font-size:12px}.muted{color:var(--muted)}
+  .old{color:var(--muted);text-decoration:line-through}.new{color:var(--text)}.arrow{color:var(--muted)}
+  .pill{font-size:11px;padding:3px 9px;border-radius:6px}
+  .pill-ok{background:var(--ok-bg);color:var(--ok-fg)}
+  .bar{display:inline-block;width:80px;height:6px;border-radius:3px;background:var(--surface);overflow:hidden;vertical-align:middle;margin-right:6px}
+  .bar-fill{height:100%}
+  .score{font-size:12px;color:var(--muted)}
+  footer{margin-top:24px;color:var(--muted);font-size:12px}
+</style></head><body>
+  <h1>pw-self-heal report · demo run</h1>
+  <div class="sub">6 heals · 6 unique locators · generated 2026-06-11 00:57:41</div>
+  <div class="cards">
+    <div class="metric"><div class="label">Healed</div><div class="num" style="color:var(--ok-fg)">6</div></div>
+    <div class="metric"><div class="label">Unique locators</div><div class="num">6</div></div>
+    <div class="metric"><div class="label">Avg confidence</div><div class="num">0.87</div></div>
+    <div class="metric"><div class="label">Avg heal time</div><div class="num">46<span style="font-size:13px;color:var(--muted)"> ms</span></div></div>
+  </div>
+  <div class="chips"><span class="chip">getByTestId · 2</span><span class="chip">getByRole · 1</span><span class="chip">getByText · 1</span><span class="chip">string selector · 1</span><span class="chip">getByLabel · 1</span></div>
+  <table>
+    <thead><tr><th>Status</th><th>Locator</th><th>Via</th><th>Confidence</th><th>Mode</th><th>Time</th><th>When</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill pill-ok">healed</span></td>
+        <td class="mono"><span class="old">getByTestId('add-to-cart')</span> <span class="arrow">→</span> <span class="new">getByTestId('add-to-cart-btn')</span></td>
+        <td class="mono small">getByTestId</td>
+        <td><div class="bar"><div class="bar-fill" style="width:94%;background:#1d9e75"></div></div><span class="score">0.94</span></td>
+        <td class="small">hybrid</td>
+        <td class="small muted">41 ms</td>
+        <td class="small muted">2026-06-11 00:56:41</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-ok">healed</span></td>
+        <td class="mono"><span class="old">getByRole('button', { name: 'Sign in' })</span> <span class="arrow">→</span> <span class="new">getByRole('button', { name: 'Log in' })</span></td>
+        <td class="mono small">getByRole</td>
+        <td><div class="bar"><div class="bar-fill" style="width:88%;background:#1d9e75"></div></div><span class="score">0.88</span></td>
+        <td class="small">hybrid</td>
+        <td class="small muted">55 ms</td>
+        <td class="small muted">2026-06-11 00:55:41</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-ok">healed</span></td>
+        <td class="mono"><span class="old">getByTestId('submit')</span> <span class="arrow">→</span> <span class="new">getByTestId('submit-btn')</span></td>
+        <td class="mono small">getByTestId</td>
+        <td><div class="bar"><div class="bar-fill" style="width:82%;background:#1d9e75"></div></div><span class="score">0.82</span></td>
+        <td class="small">heuristic</td>
+        <td class="small muted">37 ms</td>
+        <td class="small muted">2026-06-11 00:50:41</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-ok">healed</span></td>
+        <td class="mono"><span class="old">getByText('Continue')</span> <span class="arrow">→</span> <span class="new">getByText('Proceed')</span></td>
+        <td class="mono small">getByText</td>
+        <td><div class="bar"><div class="bar-fill" style="width:79%;background:#ba7517"></div></div><span class="score">0.79</span></td>
+        <td class="small">hybrid</td>
+        <td class="small muted">61 ms</td>
+        <td class="small muted">2026-06-11 00:48:41</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-ok">healed</span></td>
+        <td class="mono"><span class="old">#username</span> <span class="arrow">→</span> <span class="new">[name="username"]</span></td>
+        <td class="mono small">string selector</td>
+        <td><div class="bar"><div class="bar-fill" style="width:86%;background:#1d9e75"></div></div><span class="score">0.86</span></td>
+        <td class="small">heuristic</td>
+        <td class="small muted">33 ms</td>
+        <td class="small muted">2026-06-11 00:42:41</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-ok">healed</span></td>
+        <td class="mono"><span class="old">getByLabel('Email address')</span> <span class="arrow">→</span> <span class="new">getByLabel('Email')</span></td>
+        <td class="mono small">getByLabel</td>
+        <td><div class="bar"><div class="bar-fill" style="width:91%;background:#1d9e75"></div></div><span class="score">0.91</span></td>
+        <td class="small">hybrid</td>
+        <td class="small muted">48 ms</td>
+        <td class="small muted">2026-06-11 00:35:41</td>
+      </tr></tbody>
+  </table>
+  <footer>Generated by @vijaypjavvadi/pw-self-heal · in-process locator self-healing</footer>
+</body></html>

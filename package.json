@@ -1,0 +1,81 @@
+{
+  "name": "@vijaypjavvadi/pw-self-heal",
+  "version": "0.1.0",
+  "description": "In-process self-healing locators for Playwright. Ranks DOM candidates with a trained 17-feature model (no server, no Python). Heuristic, ML (ONNX), and hybrid modes.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "pw-self-heal": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "models/*.onnx",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --ext .ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "playwright",
+    "self-healing",
+    "locator",
+    "test-automation",
+    "flaky-tests",
+    "resilient",
+    "onnx",
+    "typescript"
+  ],
+  "author": {
+    "name": "Vijay P. Javvadi",
+    "email": "jvijayprasad@gmail.com",
+    "url": "https://github.com/javvadivijayprasad"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/javvadivijayprasad/pw-self-heal.git"
+  },
+  "homepage": "https://github.com/javvadivijayprasad/pw-self-heal#readme",
+  "bugs": {
+    "url": "https://github.com/javvadivijayprasad/pw-self-heal/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    }
+  },
+  "optionalDependencies": {
+    "onnxruntime-node": "^1.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "@types/node": "^20.12.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "original": { "test_case": "t", "page_name": "p", "element_name": "#username", "locator_type": "id", "locator_value": "username", "tag": "input", "element_id": "username", "name": "user", "class_name": "form-control", "placeholder": "Username", "aria_label": "", "parent_tag": "form", "dom_depth": 5, "text": "" },
+    "candidate": { "tag": "input", "text": "", "element_id": "username", "name": "user", "class_name": "form-control", "placeholder": "Username", "aria_label": "", "parent_tag": "form", "dom_depth": 5, "sibling_count": 2, "type_attr": "text", "value_attr": "" },
+    "features": { "tag_match": 1.0, "text_similarity": 0.0, "attribute_similarity": 1.0, "class_similarity": 1.0, "parent_similarity": 1.0, "depth_similarity": 1.0, "id_similarity": 1.0, "name_similarity": 1.0, "placeholder_similarity": 1.0, "aria_label_similarity": 0.0, "type_attr_match": 0.0, "sibling_count_ratio": 0.1, "multi_attr_match_count": 3.0, "candidate_text_actionable": 0.0, "candidate_in_form": 1.0, "candidate_attr_richness": 0.71428571, "original_attr_count": 0.57142857 },
+    "heuristic": 0.8
+  },
+  {
+    "original": { "test_case": "t", "page_name": "p", "element_name": "Sign in", "locator_type": "css", "locator_value": "button.signin", "tag": "button", "element_id": "signin", "name": "", "class_name": "btn signin", "placeholder": "", "aria_label": "Sign in", "parent_tag": "form", "dom_depth": 6, "text": "Sign in" },
+    "candidate": { "tag": "button", "text": "Sign in", "element_id": "signin-v2", "name": "", "class_name": "btn btn-primary", "placeholder": "", "aria_label": "Sign in", "parent_tag": "form", "dom_depth": 6, "sibling_count": 1, "type_attr": "submit", "value_attr": "" },
+    "features": { "tag_match": 1.0, "text_similarity": 1.0, "attribute_similarity": 1.0, "class_similarity": 0.4, "parent_similarity": 1.0, "depth_similarity": 1.0, "id_similarity": 0.8, "name_similarity": 0.0, "placeholder_similarity": 0.0, "aria_label_similarity": 1.0, "type_attr_match": 0.0, "sibling_count_ratio": 0.05, "multi_attr_match_count": 1.0, "candidate_text_actionable": 1.0, "candidate_in_form": 1.0, "candidate_attr_richness": 0.57142857, "original_attr_count": 0.57142857 },
+    "heuristic": 0.91
+  },
+  {
+    "original": { "test_case": "t", "page_name": "p", "element_name": "#username", "locator_type": "id", "locator_value": "username", "tag": "input", "element_id": "username", "name": "user", "class_name": "form-control", "placeholder": "Username", "aria_label": "", "parent_tag": "form", "dom_depth": 5, "text": "" },
+    "candidate": { "tag": "div", "text": "Footer copyright 2026", "element_id": "footer", "name": "", "class_name": "footer", "placeholder": "", "aria_label": "", "parent_tag": "body", "dom_depth": 2, "sibling_count": 0, "type_attr": "", "value_attr": "" },
+    "features": { "tag_match": 0.0, "text_similarity": 0.0, "attribute_similarity": 0.28571429, "class_similarity": 0.33333333, "parent_similarity": 0.0, "depth_similarity": 0.7, "id_similarity": 0.28571429, "name_similarity": 0.0, "placeholder_similarity": 0.0, "aria_label_similarity": 0.0, "type_attr_match": 0.0, "sibling_count_ratio": 0.0, "multi_attr_match_count": 0.0, "candidate_text_actionable": 0.0, "candidate_in_form": 0.0, "candidate_attr_richness": 0.28571429, "original_attr_count": 0.57142857 },
+    "heuristic": 0.19142857
+  },
+  {
+    "original": { "test_case": "t", "page_name": "p", "element_name": ".cta", "locator_type": "class", "locator_value": "cta", "tag": "a", "element_id": "", "name": "", "class_name": "cta", "placeholder": "", "aria_label": "", "parent_tag": "", "dom_depth": 0, "text": "Continue" },
+    "candidate": { "tag": "a", "text": "Continue", "element_id": "", "name": "", "class_name": "cta primary", "placeholder": "", "aria_label": "", "parent_tag": "nav", "dom_depth": 3, "sibling_count": 4, "type_attr": "", "value_attr": "" },
+    "features": { "tag_match": 1.0, "text_similarity": 1.0, "attribute_similarity": 0.0, "class_similarity": 0.42857143, "parent_similarity": 0.0, "depth_similarity": 0.0, "id_similarity": 0.0, "name_similarity": 0.0, "placeholder_similarity": 0.0, "aria_label_similarity": 0.0, "type_attr_match": 0.0, "sibling_count_ratio": 0.2, "multi_attr_match_count": 0.0, "candidate_text_actionable": 1.0, "candidate_in_form": 0.0, "candidate_attr_richness": 0.14285714, "original_attr_count": 0.28571429 },
+    "heuristic": 0.41428571
+  }
+]

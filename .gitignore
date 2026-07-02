@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.pwheal/
+coverage/
+
+# mount/scratch artifacts
+.fuse_hidden*
+_check.*
+
+# python scratch env used only for ONNX export
+.venv-onnx/
