@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / support
+    url: https://github.com/javvadivijayprasad/pw-self-heal/blob/main/SUPPORT.md
+    about: How to get help and ask usage questions.
+  - name: Security vulnerability
+    url: https://github.com/javvadivijayprasad/pw-self-heal/blob/main/SECURITY.md
+    about: Please report security issues privately, not as a public issue.

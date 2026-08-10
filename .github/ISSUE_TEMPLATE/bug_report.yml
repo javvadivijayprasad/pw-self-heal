@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a problem with pw-self-heal
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in the sections
+        below so we can reproduce and fix it quickly.
+  - type: input
+    id: version
+    attributes:
+      label: pw-self-heal version
+      placeholder: e.g. 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: playwright-version
+    attributes:
+      label: "@playwright/test version"
+      placeholder: e.g. 1.45.0
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - heuristic
+        - ml
+        - hybrid
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including the locator that failed to heal (or healed incorrectly).
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest test + DOM (or a link to a repo) that reproduces the issue.
+      render: typescript
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Node version, onnxruntime-node installed?, CI or local.
+    validations:
+      required: false
