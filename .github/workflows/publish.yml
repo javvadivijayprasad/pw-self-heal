@@ -1,17 +1,21 @@
 name: Publish to npm
 
-# Publishes @vijaypjavvadi/pw-self-heal when a GitHub Release is published,
-# or on manual dispatch. Requires an NPM_TOKEN secret (an npm automation token).
+# Publishes @vijaypjavvadi/pw-self-heal via npm Trusted Publishing (OIDC).
+# No NPM_TOKEN secret required — GitHub Actions authenticates to npm directly.
 #
-#   Setup once:
-#     1. npmjs.com -> Access Tokens -> Generate -> "Automation"
-#     2. GitHub repo -> Settings -> Secrets and variables -> Actions
-#        -> New repository secret -> name: NPM_TOKEN, value: <token>
+# ONE-TIME SETUP (a brand-new package cannot use OIDC for its FIRST publish):
+#   1. Publish v0.1.0 once from your machine:
+#        npm login && npm publish
+#   2. On npmjs.com open the package -> Settings -> Trusted Publishing
+#      -> Add publisher (GitHub Actions):
+#          Organization or user: javvadivijayprasad
+#          Repository:           pw-self-heal
+#          Workflow filename:    publish.yml
+#          Environment:          (leave blank)
 #
-#   Release flow:
-#     - bump "version" in package.json, commit, push
-#     - create a GitHub Release with tag v<version> (e.g. v0.1.0)
-#     - this workflow builds, tests, and publishes automatically
+# AFTER THAT, every GitHub Release runs this workflow and publishes with no token.
+#   - bump "version" in package.json, commit, push
+#   - create a GitHub Release with tag v<version> (e.g. v0.1.1)
 
 on:
   release:
@@ -23,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # enables npm provenance
+      id-token: write # required for OIDC trusted publishing (and provenance)
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +36,9 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
           cache: npm
+
+      - name: Upgrade npm (trusted publishing needs >= 11.5.1)
+        run: npm install -g npm@latest
 
       - name: Install
         run: npm ci || npm install
@@ -51,7 +58,7 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Publish
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Trusted publishing: no NODE_AUTH_TOKEN, and provenance is emitted by
+      # default, so no --provenance flag needed.
+      - name: Publish (OIDC trusted publishing)
+        run: npm publish

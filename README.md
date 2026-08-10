@@ -10,6 +10,8 @@
 
 Part of the **Playwright Extensions** suite (`pw-self-heal`, `pw-triage`, `pw-perf`).
 
+📍 See the [**Roadmap**](ROADMAP.md) for what's shipping next.
+
 ## Why
 
 UI churn breaks locators even when the element still exists — a renamed
@@ -228,6 +230,19 @@ The ranker is trained (GB AUC 0.9993 / XGB 0.9994) and published with a Zenodo
 DOI: **10.5281/zenodo.19684439**. See [`models/README.md`](models/README.md) to
 export the ONNX models from the trained pickles. The TypeScript feature port is
 verified for byte-for-byte parity with the reference implementation.
+
+## How to cite
+
+If you use `pw-self-heal` in academic work, please cite it. A
+[`CITATION.cff`](CITATION.cff) is included (GitHub shows a "Cite this repository"
+button), or use:
+
+> Javvadi, V. P. (2026). *pw-self-heal: In-Process Self-Healing Locators for
+> Playwright with a Trained Similarity Ranker* (Version 1.0.0) [Computer software].
+> https://doi.org/10.5281/zenodo.19684439
+
+The DOI resolves to the archived trained ranking model (GB AUC 0.9993 / XGB AUC
+0.9994) that powers the `ml` and `hybrid` modes.
 
 ## License
 

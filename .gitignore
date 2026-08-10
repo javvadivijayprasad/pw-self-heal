@@ -10,3 +10,6 @@ _check.*
 
 # python scratch env used only for ONNX export
 .venv-onnx/
+
+# internal planning — keep local, do not publish
+JOSS-RELEASE-PLAN.md

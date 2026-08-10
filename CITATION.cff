@@ -1,0 +1,60 @@
+# YAML 1.2
+# Citation File Format 1.2.0
+# https://citation-file-format.github.io/
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "pw-self-heal: In-Process Self-Healing Locators for Playwright with a Trained Similarity Ranker"
+abstract: >
+  pw-self-heal is an open-source TypeScript library that repairs broken
+  Playwright locators at runtime, entirely in-process, with no server and no
+  network dependency. When a locator resolves to zero elements, live-DOM
+  candidates are scored by a trained 17-feature similarity ranker (exported to
+  ONNX) and re-weighted toward the locator's expressed intent, an equivalent
+  locator is rebuilt against the best match, and the action is retried. Supports
+  heuristic, ML, and hybrid modes; wrapped locators remain genuine Playwright
+  Locator objects so web-first assertions continue to work.
+type: software
+license: MIT
+version: 1.0.0
+date-released: 2026-07-02
+authors:
+  - family-names: "Javvadi"
+    given-names: "Vijay Prasad"
+    orcid: "https://orcid.org/0009-0004-1192-6906"
+    affiliation: "Independent Researcher, Plainsboro, NJ, USA"
+    email: "vijay@vijayjavvadiresearch.ai"
+identifiers:
+  - description: "Archived trained ranking model on Zenodo"
+    type: doi
+    value: "10.5281/zenodo.19684439"
+  - description: "npm package"
+    type: url
+    value: "https://www.npmjs.com/package/@vijaypjavvadi/pw-self-heal"
+repository-code: "https://github.com/javvadivijayprasad/pw-self-heal"
+url: "https://www.npmjs.com/package/@vijaypjavvadi/pw-self-heal"
+keywords:
+  - test automation
+  - self-healing
+  - Playwright
+  - locators
+  - flaky tests
+  - ONNX
+  - machine learning
+  - TypeScript
+  - npm
+preferred-citation:
+  type: software
+  title: "pw-self-heal: In-Process Self-Healing Locators for Playwright with a Trained Similarity Ranker"
+  authors:
+    - family-names: "Javvadi"
+      given-names: "Vijay Prasad"
+      orcid: "https://orcid.org/0009-0004-1192-6906"
+      affiliation: "Independent Researcher, Plainsboro, NJ, USA"
+  year: 2026
+  version: "1.0.0"
+  doi: "10.5281/zenodo.19684439"
+  url: "https://doi.org/10.5281/zenodo.19684439"
+  notes: >
+    The DOI resolves to the archived trained ranking model (Gradient Boosting
+    AUC 0.9993 / XGBoost AUC 0.9994) that powers the library's ml and hybrid
+    modes.
