@@ -209,6 +209,39 @@ pw-self-heal report --in .pwheal/heal-events.jsonl
 | `healTimeout` | `5000` | ms to wait for the original locator before treating it as missing and healing (keeps a broken locator from stalling the full action timeout) |
 | `autoUpdateSource` | `false` | rewrite the selector in the test source on heal |
 | `maxCandidates` | `200` | DOM candidates to score |
+| `fallbackStrategy` | `['role', 'text', 'testid', 'xpath']` | ordered strategies for expressing a healed locator (semantic first, brittle path last) |
+
+### Fallback strategy
+
+When a heal is accepted, the healed locator has to be *expressed* against the
+winning candidate. `fallbackStrategy` controls how, using this precedence:
+
+1. **Intent preservation.** The original locator's own kind is tried first, so a
+   renamed `data-testid` re-heals on `getByTestId`, a role on `getByRole`, a
+   label on `getByLabel`, and so on. This step is skipped for raw `css` / `xpath`
+   locators, which carry no semantic modality to preserve.
+2. **Configured fallback.** For anything the original kind can't express, the
+   healer walks `fallbackStrategy` in order and uses the **first** strategy the
+   candidate supports. The default is `['role', 'text', 'testid', 'xpath']` —
+   most robust/semantic first, brittle path last. A strategy is *usable* when:
+   - `role` — candidate has both a role **and** an accessible name;
+   - `text` — candidate has non-empty text;
+   - `testid` — candidate exposes the `testIdAttribute` value;
+   - `css` — candidate has an id or a distinctive attribute (name / placeholder /
+     aria-label);
+   - `xpath` — always available (last-resort `page.locator(...)` path).
+3. **Terminal fallback.** If your custom list omits `xpath` and nothing else
+   fits, a guaranteed CSS/path locator is used.
+
+Override the order (e.g. prefer stable test ids over roles):
+
+```ts
+const page = withSelfHealing(basePage, {
+  fallbackStrategy: ['testid', 'role', 'text', 'css', 'xpath'],
+});
+```
+
+Omitting `fallbackStrategy` keeps the default order — fully backward compatible.
 
 ## How it works
 

@@ -18,10 +18,12 @@ import { Ranker, suggestLocator } from './ranker';
 import { ratio } from './seqmatch';
 import {
   CandidateElement,
+  DEFAULT_CONFIG,
   HealEvent,
   LocatorDescriptor,
   LocatorKind,
   LocatorMetadata,
+  LocatorStrategy,
   SelfHealConfig,
   THRESHOLDS,
 } from './types';
@@ -162,53 +164,136 @@ export function intentBoost(desc: LocatorDescriptor, c: CandidateElement): numbe
   }
 }
 
-/** Rebuild an equivalent locator against the healed candidate. */
-export function rebuildLocator(
-  page: HealablePage,
-  c: CandidateElement,
-  desc: LocatorDescriptor,
-): { locator: RealLocator; label: string } {
-  const fallback = () => {
-    const sel = suggestLocator(c);
-    return { locator: page.locator(sel), label: `locator('${sel}')` };
-  };
+type Built = { locator: RealLocator; label: string };
+
+/**
+ * Intent preservation: express the healed locator using the ORIGINAL locator's
+ * kind, if the candidate can still support it. Returns null when the candidate
+ * cannot express that modality (e.g. a testid locator whose candidate has no
+ * test-id), so the caller can fall through to {@link rebuildLocator}'s
+ * configured fallback strategy. This is what lets a renamed data-testid heal
+ * back onto its testid instead of collapsing to a brittle path.
+ */
+function buildByKind(page: HealablePage, c: CandidateElement, desc: LocatorDescriptor): Built | null {
   switch (desc.kind) {
     case 'testid':
-      if (c.test_id) return { locator: page.getByTestId(c.test_id), label: `getByTestId('${c.test_id}')` };
-      return fallback();
+      return c.test_id
+        ? { locator: page.getByTestId(c.test_id), label: `getByTestId('${c.test_id}')` }
+        : null;
     case 'role': {
       const role = c.role || desc.value;
       const nm = c.acc_name || (desc.options?.name != null ? String(desc.options.name) : '');
-      if (!role) return fallback();
+      if (!role) return null;
       return nm
         ? { locator: page.getByRole(role, { name: nm }), label: `getByRole('${role}', { name: '${nm}' })` }
         : { locator: page.getByRole(role), label: `getByRole('${role}')` };
     }
     case 'label': {
       const v = c.acc_name || desc.value;
-      return v ? { locator: page.getByLabel(v), label: `getByLabel('${v}')` } : fallback();
+      return v ? { locator: page.getByLabel(v), label: `getByLabel('${v}')` } : null;
     }
     case 'text': {
       const v = c.acc_name || c.text || desc.value;
-      return v ? { locator: page.getByText(v), label: `getByText('${v}')` } : fallback();
+      return v ? { locator: page.getByText(v), label: `getByText('${v}')` } : null;
     }
     case 'placeholder': {
       const v = c.placeholder || c.acc_name || desc.value;
-      return v ? { locator: page.getByPlaceholder(v), label: `getByPlaceholder('${v}')` } : fallback();
+      return v ? { locator: page.getByPlaceholder(v), label: `getByPlaceholder('${v}')` } : null;
     }
     case 'altText': {
       const v = c.acc_name || desc.value;
-      return v ? { locator: page.getByAltText(v), label: `getByAltText('${v}')` } : fallback();
+      return v ? { locator: page.getByAltText(v), label: `getByAltText('${v}')` } : null;
     }
     case 'title': {
       const v = c.acc_name || desc.value;
-      return v ? { locator: page.getByTitle(v), label: `getByTitle('${v}')` } : fallback();
+      return v ? { locator: page.getByTitle(v), label: `getByTitle('${v}')` } : null;
     }
     case 'css':
     case 'xpath':
     default:
-      return fallback();
+      // No semantic modality to preserve — let the fallbackStrategy decide.
+      return null;
   }
+}
+
+/**
+ * Express the healed locator using one coarse {@link LocatorStrategy}. Returns
+ * null when the candidate cannot support that strategy, so the caller advances
+ * to the next entry in the configured order. The `xpath` strategy is the
+ * last-resort path and always yields a locator (via {@link suggestLocator}).
+ */
+function buildByStrategy(page: HealablePage, c: CandidateElement, strat: LocatorStrategy): Built | null {
+  switch (strat) {
+    case 'role': {
+      // role needs a role AND an accessible name to be unambiguous.
+      if (!c.role || !c.acc_name) return null;
+      return {
+        locator: page.getByRole(c.role, { name: c.acc_name }),
+        label: `getByRole('${c.role}', { name: '${c.acc_name}' })`,
+      };
+    }
+    case 'text': {
+      const v = c.text || c.acc_name;
+      return v ? { locator: page.getByText(v), label: `getByText('${v}')` } : null;
+    }
+    case 'testid': {
+      // respects config.testIdAttribute: candidate.test_id was extracted with it.
+      return c.test_id
+        ? { locator: page.getByTestId(c.test_id), label: `getByTestId('${c.test_id}')` }
+        : null;
+    }
+    case 'css': {
+      // css needs a real anchor (id / name / placeholder / aria-label); a bare
+      // tag is not distinctive enough to count as a usable css strategy.
+      if (!(c.element_id || c.name || c.placeholder || c.aria_label)) return null;
+      const sel = suggestLocator(c);
+      return { locator: page.locator(sel), label: `locator('${sel}')` };
+    }
+    case 'xpath':
+    default: {
+      // Last-resort path — always available.
+      const sel = suggestLocator(c);
+      return { locator: page.locator(sel), label: `locator('${sel}')` };
+    }
+  }
+}
+
+/**
+ * Rebuild an equivalent locator against the healed candidate.
+ *
+ * Precedence (documented; see README "Fallback strategy"):
+ *   1. INTENT PRESERVATION — try the ORIGINAL locator's own kind first, so a
+ *      renamed testid heals on testid, a role on role, a label on label, etc.
+ *      ({@link buildByKind}; skipped for css/xpath, which carry no modality).
+ *   2. CONFIGURED FALLBACK — walk `config.fallbackStrategy` in order and use the
+ *      FIRST strategy the candidate can express. Default order:
+ *      role -> text -> testid -> xpath (semantic/robust first, brittle last).
+ *   3. TERMINAL FALLBACK — a guaranteed CSS/path locator via suggestLocator,
+ *      reached only if the configured list omits `xpath` and nothing else fits.
+ *
+ * `config` is optional so the public export stays backward compatible; it
+ * defaults to {@link DEFAULT_CONFIG} (i.e. the default fallback order).
+ */
+export function rebuildLocator(
+  page: HealablePage,
+  c: CandidateElement,
+  desc: LocatorDescriptor,
+  config: SelfHealConfig = DEFAULT_CONFIG,
+): Built {
+  // 1. Intent preservation.
+  const preserved = buildByKind(page, c, desc);
+  if (preserved) return preserved;
+
+  // 2. Configured fallback strategies, in order.
+  const strategies = config.fallbackStrategy ?? DEFAULT_CONFIG.fallbackStrategy;
+  for (const strat of strategies) {
+    const built = buildByStrategy(page, c, strat);
+    if (built) return built;
+  }
+
+  // 3. Terminal last-resort path.
+  const sel = suggestLocator(c);
+  return { locator: page.locator(sel), label: `locator('${sel}')` };
 }
 
 function descLabel(desc: LocatorDescriptor): string {
@@ -307,7 +392,7 @@ export class HealingLocator {
     }
     if (!best || best.score < threshold) return { ok: false };
 
-    const { locator: healedLoc, label } = rebuildLocator(page, best.cand, this.desc);
+    const { locator: healedLoc, label } = rebuildLocator(page, best.cand, this.desc, config);
     try {
       const value = await healedLoc[method](...args);
       this.ctx.cache.set(this.key, healedLoc);

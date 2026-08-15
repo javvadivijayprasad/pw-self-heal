@@ -55,6 +55,13 @@ export type LocatorKind =
   | 'css'
   | 'xpath';
 
+/**
+ * Coarse strategy used to express a *healed* locator against a candidate.
+ * A subset of {@link LocatorKind}: the robust/semantic ways to re-target an
+ * element, ordered by {@link SelfHealConfig.fallbackStrategy}.
+ */
+export type LocatorStrategy = 'role' | 'text' | 'testid' | 'css' | 'xpath';
+
 /** Captures the intent expressed by a Playwright locator, for healing. */
 export interface LocatorDescriptor {
   kind: LocatorKind;
@@ -138,6 +145,14 @@ export interface SelfHealConfig {
   testIdAttribute: string;
   /** Per-action timeout (ms) before treating a locator as missing. */
   healTimeout: number;
+  /**
+   * Ordered fallback strategies for expressing a healed locator. After the
+   * original locator's own kind is tried first (intent preservation), the
+   * healer walks this list and uses the FIRST strategy the candidate can
+   * express. Default: role -> text -> testid -> xpath (semantic first,
+   * brittle path last).
+   */
+  fallbackStrategy: LocatorStrategy[];
 }
 
 export const DEFAULT_CONFIG: SelfHealConfig = {
@@ -157,6 +172,7 @@ export const DEFAULT_CONFIG: SelfHealConfig = {
   logHeals: true,
   testIdAttribute: 'data-testid',
   healTimeout: 5000,
+  fallbackStrategy: ['role', 'text', 'testid', 'xpath'],
 };
 
 /** Mode -> acceptance threshold, mirroring the service settings. */

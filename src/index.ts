@@ -24,6 +24,7 @@ export type {
   LocatorMetadata,
   CandidateElement,
   LocatorKind,
+  LocatorStrategy,
   LocatorDescriptor,
   FeatureVector,
   ScoredCandidate,

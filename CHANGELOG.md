@@ -10,6 +10,12 @@ and this project adheres to
 
 ### Added
 
+- Configurable **locator fallback strategy** (`fallbackStrategy`, default
+  `['role', 'text', 'testid', 'xpath']`). When healing rebuilds a locator, the
+  original locator's kind is preserved first (a renamed `data-testid` still
+  heals on its testid), then the configured order picks the first strategy the
+  candidate can express — semantic/robust first, brittle path last. Exposes the
+  `LocatorStrategy` type. Backward compatible: omitting it uses the default.
 - Community docs: `CONTRIBUTING.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`,
   `SECURITY.md`, and this changelog, in preparation for the JOSS submission.
 - GitHub issue forms (`bug_report.yml`, `feature_request.yml`) + `config.yml`,
