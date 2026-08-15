@@ -107,7 +107,10 @@ describe('community docs (JOSS W1)', () => {
       const versions = [...body.matchAll(/^## \[(\d+\.\d+\.\d+)\]/gm)].map(
         (m) => m[1],
       );
-      expect(versions).toEqual(['1.0.0', '0.1.0']);
+      // At least the first stable release is present, and entries are newest
+      // first — assert ordering, not a frozen list (new releases must not break this).
+      expect(versions.length).toBeGreaterThan(0);
+      expect(versions).toContain('1.0.0');
       const sorted = [...versions].sort((a, b) =>
         b.localeCompare(a, undefined, { numeric: true }),
       );

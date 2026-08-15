@@ -1,6 +1,6 @@
 {
   "name": "@vijaypjavvadi/pw-self-heal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "In-process self-healing locators for Playwright. Ranks DOM candidates with a trained 17-feature model (no server, no Python). Heuristic, ML (ONNX), and hybrid modes.",
   "type": "module",
   "main": "dist/index.js",
