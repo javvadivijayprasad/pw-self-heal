@@ -12,6 +12,7 @@ import {
   HYBRID_ALPHA,
   HealResult,
   LocatorMetadata,
+  LocatorScore,
   RankerMode,
   ScoredCandidate,
   SelfHealConfig,
@@ -159,4 +160,31 @@ export function suggestLocator(c: CandidateElement): string {
   if (c.aria_label) return `[aria-label="${c.aria_label}"]`;
   if (c.css_path_hint) return c.css_path_hint;
   return c.tag;
+}
+
+
+/**
+ * Project one internal {@link ScoredCandidate} onto the public
+ * {@link LocatorScore} surface. `mode` is the (effective) ranker mode that
+ * produced the score; it is carried through verbatim. `mlProbability` is `0`
+ * whenever scoring was heuristic-only.
+ */
+export function toLocatorScore(scored: ScoredCandidate, mode: RankerMode): LocatorScore {
+  return {
+    locator: suggestLocator(scored.candidate),
+    finalScore: scored.finalScore,
+    mlProbability: scored.mlProbability,
+    heuristicScore: scored.heuristicScore,
+    mode,
+    rank: scored.rank,
+  };
+}
+
+/**
+ * Convert a {@link HealResult}'s `topCandidates` (already truncated to
+ * `config.topK`, best-first) into public {@link LocatorScore}s, tagging each
+ * with the result's effective `mode`.
+ */
+export function scoresFromResult(result: HealResult): LocatorScore[] {
+  return result.topCandidates.map((s) => toLocatorScore(s, result.mode));
 }

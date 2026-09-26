@@ -192,6 +192,37 @@ const test = withSelfHealing(base, { mode: 'hybrid' });
 //   page.getHealingSummary() -> { totalHeals, cachedLocators, heals[] }
 ```
 
+### Ranking decisions: `LocatorScore`
+
+Every heal event carries an optional `scores: LocatorScore[]` — the top-N
+ranked candidates (N = `topK`, best first) that produced the decision. It is a
+clean, public projection of the internal ranking, meant for logging,
+dashboards, or custom re-ranking:
+
+```ts
+interface LocatorScore {
+  locator: string;        // rebuilt/suggested locator string for this candidate
+  finalScore: number;     // blended score used for the accept/reject decision
+  mlProbability: number;  // model probability in [0,1] (0 if heuristic-only)
+  heuristicScore: number; // heuristic-only similarity score
+  mode: 'heuristic' | 'ml' | 'hybrid'; // effective ranker mode
+  rank: number;           // rank among candidates (1 = best)
+}
+```
+
+Read them off the summary (or the telemetry JSONL — each line is a `HealEvent`):
+
+```ts
+for (const heal of page.getHealingSummary().heals) {
+  for (const s of heal.scores ?? []) {
+    console.log(`#${s.rank} ${s.locator} finalScore=${s.finalScore} (${s.mode})`);
+  }
+}
+```
+
+You can also convert a `HealResult` yourself with the exported helpers
+`scoresFromResult(result)` or `toLocatorScore(scoredCandidate, mode)`.
+
 Every heal is also appended to `.pwheal/heal-events.jsonl`. Summarize a run:
 
 ```bash

@@ -6,7 +6,7 @@
  */
 
 import { extractCandidates, type EvaluatablePage } from './candidateExtractor';
-import { Ranker } from './ranker';
+import { Ranker, scoresFromResult } from './ranker';
 import { appendHealEvent } from './telemetry';
 import { updateSourceFile } from './sourceUpdater';
 import { makeLocatorFactories, type HealablePage, type HealContext } from './locator';
@@ -182,6 +182,7 @@ export function wrapPage<T extends EvaluatablePage>(
           candidatesEvaluated: result.candidatesEvaluated,
           elapsedMs: result.elapsedMs,
           via: 'string',
+          scores: scoresFromResult(result),
         };
         record(event);
         if (config.logHeals) {

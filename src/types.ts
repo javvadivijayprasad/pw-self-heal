@@ -101,6 +101,37 @@ export interface ScoredCandidate {
   rank: number;
 }
 
+/**
+ * Public projection of one ranked candidate's scoring decision.
+ *
+ * Where {@link ScoredCandidate} is the internal shape (it carries the raw
+ * candidate element and the full 17-d {@link FeatureVector}), `LocatorScore`
+ * is the clean, stable surface downstream code consumes for logging,
+ * dashboards, or custom ranking. Produced via `toLocatorScore` /
+ * `scoresFromResult` and attached to {@link HealEvent.scores}.
+ *
+ * Fields (precedence / meaning):
+ *  - `locator`        the rebuilt/suggested locator string for this candidate
+ *                     (from `suggestLocator`).
+ *  - `finalScore`     the blended score used for the accept/reject decision
+ *                     (heuristic-only in `heuristic` mode; ml-only in `ml`
+ *                     mode; `alpha*heuristic + (1-alpha)*ml` in `hybrid`).
+ *  - `mlProbability`  model probability in [0,1]; `0` when heuristic-only
+ *                     (mode `heuristic`, or ml/hybrid degraded to heuristic).
+ *  - `heuristicScore` the heuristic-only similarity score.
+ *  - `mode`           the (effective) ranker mode that produced the score.
+ *  - `rank`           the candidate's rank as assigned by the ranker
+ *                     (1 = best; mirrors {@link ScoredCandidate.rank}).
+ */
+export interface LocatorScore {
+  locator: string;
+  finalScore: number;
+  mlProbability: number;
+  heuristicScore: number;
+  mode: RankerMode;
+  rank: number;
+}
+
 export interface HealResult {
   healed: boolean;
   suggestedLocator?: string;
@@ -124,6 +155,13 @@ export interface HealEvent {
   elapsedMs: number;
   /** 'string' for page.click(selector); otherwise the locator kind. */
   via?: 'string' | LocatorKind;
+  /**
+   * Top-N scoring decisions behind this heal (N = {@link SelfHealConfig.topK}),
+   * ordered best-first, for downstream logging/dashboards. Optional and purely
+   * additive: pre-existing consumers are unaffected. Lands in both the
+   * telemetry JSONL and `getHealingSummary()`.
+   */
+  scores?: LocatorScore[];
 }
 
 export interface SelfHealConfig {

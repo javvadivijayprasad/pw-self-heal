@@ -14,7 +14,7 @@
  */
 
 import { extractCandidates, type EvaluatablePage } from './candidateExtractor';
-import { Ranker, suggestLocator } from './ranker';
+import { Ranker, scoresFromResult, suggestLocator } from './ranker';
 import { ratio } from './seqmatch';
 import {
   CandidateElement,
@@ -406,6 +406,9 @@ export class HealingLocator {
         candidatesEvaluated: candidates.length,
         elapsedMs: Date.now() - t0,
         via: this.desc.kind,
+        // Top-N (N = config.topK) ranking decisions, best-first, for downstream
+        // logging/dashboards. Purely additive; existing consumers unaffected.
+        scores: scoresFromResult(result),
       };
       this.ctx.record(event);
       if (config.logHeals) {

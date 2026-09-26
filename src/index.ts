@@ -3,7 +3,7 @@
 export { withSelfHealing } from './fixture';
 export { wrapPage, classifyError, parseLocator } from './heal';
 export type { ErrorClass, HealingSummary } from './heal';
-export { Ranker, suggestLocator } from './ranker';
+export { Ranker, suggestLocator, toLocatorScore, scoresFromResult } from './ranker';
 export {
   HealingLocator,
   makeLocatorFactories,
@@ -28,6 +28,7 @@ export type {
   LocatorDescriptor,
   FeatureVector,
   ScoredCandidate,
+  LocatorScore,
   HealResult,
   HealEvent,
   SelfHealConfig,
