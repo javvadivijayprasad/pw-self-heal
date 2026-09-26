@@ -44,6 +44,21 @@ if (!drifted.healed || drifted.bestCandidate?.candidate.element_id !== 'add-to-c
   console.error('FAIL: drift case should heal to add-to-cart-btn'); ok = false;
 }
 
+// STRICT_ML=1 (used in CI): require the trained ONNX model to actually run — a
+// non-zero mlProbability proves the model loaded rather than silently degrading
+// to the heuristic ranker. Locally, without onnxruntime-node, this is skipped.
+if (process.env.STRICT_ML === '1') {
+  const mlProb = drifted.bestCandidate?.mlProbability ?? 0;
+  console.log('STRICT_ML -> mlProbability:', mlProb);
+  if (!(mlProb > 0)) {
+    console.error(
+      'FAIL: STRICT_ML set but the ONNX model did not run (mlProbability=0 — heuristic fallback). ' +
+        'Check that onnxruntime-node is installed and models/healing_ranker_gb.onnx is present.',
+    );
+    ok = false;
+  }
+}
+
 const unrelated = await r.rank(original, noMatch);
 console.log('UNRELATED  -> healed:', unrelated.healed);
 if (unrelated.healed) {

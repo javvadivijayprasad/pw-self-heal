@@ -31,3 +31,14 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Validate ONNX model
+        # Ensure the trained model loads and heals a real drift (and rejects an
+        # unrelated element). Installs the optional ML runtime and sets STRICT_ML
+        # so the step FAILS if the model can't load (rather than silently
+        # degrading to the heuristic ranker).
+        env:
+          STRICT_ML: "1"
+        run: |
+          npm install --no-save onnxruntime-node
+          npm run smoke
