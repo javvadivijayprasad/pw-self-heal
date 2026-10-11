@@ -11,32 +11,13 @@ import { appendHealEvent } from './telemetry';
 import { updateSourceFile } from './sourceUpdater';
 import { makeLocatorFactories, type HealablePage, type HealContext } from './locator';
 import { DEFAULT_CONFIG, HealEvent, LocatorMetadata, ScoredCandidate, SelfHealConfig } from './types';
+import { classifyError } from './errors';
 
-const HEALABLE_PATTERNS = [
-  'waiting for locator',
-  'No element matches',
-  'resolved to 0 elements',
-  'no matching selector',
-  'failed to find element',
-];
-const RETRYABLE_PATTERNS = [
-  'not visible',
-  'intercepts pointer events',
-  'is not enabled',
-  'element is not attached',
-  'is outside of the viewport',
-  'Target closed',
-  'navigating',
-];
-
-export type ErrorClass = 'healable' | 'retryable' | 'fatal';
-
-export function classifyError(err: unknown): ErrorClass {
-  const msg = (err as Error)?.message ?? '';
-  for (const p of HEALABLE_PATTERNS) if (msg.includes(p)) return 'healable';
-  for (const p of RETRYABLE_PATTERNS) if (msg.includes(p)) return 'retryable';
-  return 'fatal';
-}
+// Error classification (healable / retryable / stale / fatal) lives in a shared
+// module so both healing paths can use it without an import cycle. Re-exported
+// here to keep the public surface (and `index.ts`) backward compatible.
+export { classifyError, isStaleError } from './errors';
+export type { ErrorClass } from './errors';
 
 /** Infer LocatorMetadata from a CSS/selector string (the original is gone). */
 export function parseLocator(selector: string): LocatorMetadata {
@@ -137,6 +118,20 @@ export function wrapPage<T extends EvaluatablePage>(
       const cls = classifyError(err);
       if (cls === 'fatal') throw err;
 
+      // STALE / context-restart: destroyed execution context, closed/crashed
+      // page, or detached frame/element. A cached healed SELECTOR may have been
+      // resolved against the OLD page; drop it and re-resolve the ORIGINAL
+      // selector on the live context before attempting any DOM-dependent heal.
+      if (cls === 'stale') {
+        if (healCache.has(selector)) healCache.delete(selector);
+        try {
+          return await action(selector, ...args);
+        } catch (liveErr) {
+          if (classifyError(liveErr) === 'fatal') throw liveErr;
+          // still failing on the live context — fall through to a fresh heal.
+        }
+      }
+
       if (cls === 'retryable') {
         try {
           if (config.implicitWaitOnRetry > 0) await sleep(config.implicitWaitOnRetry);
@@ -161,7 +156,19 @@ export function wrapPage<T extends EvaluatablePage>(
         console.log(`[pw-self-heal] locator failed: "${selector}" [${cls}] — healing`);
       }
 
-      const candidates = await extractCandidates(page as EvaluatablePage, config.maxCandidates, config.testIdAttribute);
+      let candidates;
+      try {
+        candidates = await extractCandidates(
+          page as EvaluatablePage,
+          config.maxCandidates,
+          config.testIdAttribute,
+        );
+      } catch (exErr) {
+        // Context torn down mid-heal (page.evaluate on a destroyed context):
+        // abort cleanly rather than false-healing; surface the original error.
+        if (classifyError(exErr) === 'stale') throw err;
+        throw exErr;
+      }
       const meta = parseLocator(selector);
       const result = await ranker.rank(meta, candidates);
 
@@ -214,6 +221,11 @@ export function wrapPage<T extends EvaluatablePage>(
     config,
     record,
     cache: new Map(),
+    // Parallel token snapshots + a live-token getter power the cache's
+    // context-restart guard (see locator.ts). Default token is the page object
+    // itself: stable on the normal path, so cache reuse pays ~zero overhead.
+    cacheTokens: new Map(),
+    getPageToken: () => page,
   };
   const factories = makeLocatorFactories(ctx) as Record<string, unknown>;
   for (const name of LOCATOR_FACTORIES) proxy[name] = factories[name];

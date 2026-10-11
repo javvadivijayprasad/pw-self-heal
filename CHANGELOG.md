@@ -8,6 +8,46 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-10
+
+### Fixed
+
+- **Stale-element / context-restart recovery.** When the Playwright browser
+  context or page restarts mid-run (context closed+recreated, page
+  crashed/reloaded, or a navigation destroys the execution context), healing no
+  longer surfaces the resulting `Target closed` /
+  `Execution context was destroyed` / `Element is not attached to the DOM` error
+  as a hard failure:
+  - A new **stale / context-restart** error class (`classifyError`, now in
+    `src/errors.ts`, re-exported from the package root alongside `isStaleError`)
+    recognizes the teardown signatures — *Execution context was destroyed*,
+    *Target closed*, *Target page, context or browser has been closed*,
+    *Target crashed*, *Navigation failed because page was closed*,
+    *frame was detached*, *Element is not attached to the DOM* (matched
+    case-insensitively) — distinct from `healable` (zero-match), `retryable`
+    (not-actionable-yet), and `fatal` (real defect). Stale is checked **first**
+    because several of its messages overlap with retryable phrasing.
+  - A **cached healed locator** that throws a context-restart error is now
+    **invalidated** (along with any sibling entries bound to the dead context)
+    and the action **re-resolves on the live page** — original locator first,
+    then a fresh heal — instead of throwing the stale error. A lightweight
+    page/context **token guard** on the heal cache skips entries bound to a
+    now-dead page with no overhead on the normal path.
+  - `tryHeal` / `extractCandidates` now **abort cleanly** when `page.evaluate`
+    dies on a destroyed context, so a heal is never fabricated against a dead
+    DOM; the caller re-attempts on the live context or rethrows the original
+    error.
+
+## [1.2.1] - 2026-09-26
+
+### Added
+
+- **Model card** (`docs/model-card.md`) documenting the trained locator ranker —
+  architecture (Gradient Boosting / XGBoost → ONNX), the 17 input features,
+  training/evaluation data (~6,200/1,550 pairs), metrics (GB AUC 0.9993, XGB
+  0.9994, hybrid 68.63% HSR), intended use, limitations, and ethical/privacy
+  considerations. Linked from the README and `models/README.md`.
+
 ## [1.2.0] - 2026-09-05
 
 ### Added

@@ -172,6 +172,20 @@ the same modality — `getByTestId('add-to-cart')` heals to
 > model scores id/name/text/aria similarity, and the intent boost adds the signal
 > the author actually expressed — so a renamed testid heals on its testid.
 
+### Resilience to context restarts & stale elements
+
+Healing also recovers when the Playwright **browser context or page restarts**
+mid-run — a context closed and recreated, a page that crashed or reloaded, or a
+navigation that destroys the execution context. These surface as
+`Target closed` / `Execution context was destroyed` /
+`Element is not attached to the DOM`-class errors, which pw-self-heal classifies
+as a distinct **stale / context-restart** condition (separate from a zero-match
+miss or a real defect). When that happens, a **cached heal bound to the old page
+is invalidated** and the action is **re-resolved against the live page** (the
+original locator first, then a fresh heal) rather than failing with the stale
+error; and a heal in progress is **aborted cleanly** so it is never fabricated
+against a dead DOM. The guard adds no overhead on the normal, no-restart path.
+
 ## Modes
 
 | Mode | Needs model? | Notes |
@@ -291,9 +305,11 @@ Omitting `fallbackStrategy` keeps the default order — fully backward compatibl
 ## Model & citation
 
 The ranker is trained (GB AUC 0.9993 / XGB 0.9994) and published with a Zenodo
-DOI: **10.5281/zenodo.19684439**. See [`models/README.md`](models/README.md) to
-export the ONNX models from the trained pickles. The TypeScript feature port is
-verified for byte-for-byte parity with the reference implementation.
+DOI: **10.5281/zenodo.19684439**. See the [**model card**](docs/model-card.md)
+for architecture, features, training data, metrics, intended use, and
+limitations, and [`models/README.md`](models/README.md) to export the ONNX models
+from the trained pickles. The TypeScript feature port is verified for
+byte-for-byte parity with the reference implementation.
 
 ## How to cite
 

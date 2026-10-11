@@ -1,7 +1,7 @@
 /** @vijaypjavvadi/pw-self-heal — public API. */
 
 export { withSelfHealing } from './fixture';
-export { wrapPage, classifyError, parseLocator } from './heal';
+export { wrapPage, classifyError, isStaleError, parseLocator } from './heal';
 export type { ErrorClass, HealingSummary } from './heal';
 export { Ranker, suggestLocator, toLocatorScore, scoresFromResult } from './ranker';
 export {

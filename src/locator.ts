@@ -14,6 +14,7 @@
  */
 
 import { extractCandidates, type EvaluatablePage } from './candidateExtractor';
+import { classifyError } from './errors';
 import { Ranker, scoresFromResult, suggestLocator } from './ranker';
 import { ratio } from './seqmatch';
 import {
@@ -59,6 +60,21 @@ export interface HealContext {
   config: SelfHealConfig;
   record(event: HealEvent): void;
   cache: Map<string, RealLocator>;
+  /**
+   * Optional token identifying the live page / execution context. Cached healed
+   * locators are bound to the token that was live when they were created; when
+   * the browser context restarts (context closed+recreated, page crashed/
+   * reloaded, navigation destroyed the context) the token changes and those
+   * entries are stale. A cheap identity read — no cost on the normal
+   * (no-restart) path. Defaults to the {@link HealContext.page} object itself.
+   */
+  getPageToken?(): unknown;
+  /**
+   * Per-key token snapshots parallel to {@link HealContext.cache} (same
+   * lifetime). Optional for backward compatibility; when absent the cache
+   * degrades to force-dropping only the failing key on a stale error.
+   */
+  cacheTokens?: Map<string, unknown>;
 }
 
 const ROLE_TO_TAG: Record<string, string> = {
@@ -329,8 +345,64 @@ export class HealingLocator {
     this.key = `${desc.kind}|${desc.value}|${desc.options?.name ?? ''}`;
   }
 
-  async invoke(method: string, args: unknown[]): Promise<unknown> {
+  /** The live page/context token (defaults to the page object itself). */
+  private pageToken(): unknown {
+    return this.ctx.getPageToken ? this.ctx.getPageToken() : this.ctx.page;
+  }
+
+  /**
+   * Read the heal cache, honoring the context-restart guard: a cached locator is
+   * bound to the token that was live when it was healed. If that token no longer
+   * matches the live one, the context restarted — purge the dead entries and
+   * report a miss so we re-resolve on the CURRENT page. No overhead on the
+   * normal path (one identity compare of a stable token).
+   */
+  private cachedLocator(): RealLocator | undefined {
     const cached = this.ctx.cache.get(this.key);
+    if (!cached) return undefined;
+    const tokens = this.ctx.cacheTokens;
+    if (tokens && tokens.get(this.key) !== this.pageToken()) {
+      this.invalidateDeadEntries();
+      return undefined;
+    }
+    return cached;
+  }
+
+  /** Store a healed locator together with the token it was resolved against. */
+  private storeCache(loc: RealLocator): void {
+    this.ctx.cache.set(this.key, loc);
+    this.ctx.cacheTokens?.set(this.key, this.pageToken());
+  }
+
+  /** Force-drop the current key — its cached heal just threw a stale error. */
+  private invalidateStaleEntry(): void {
+    this.ctx.cache.delete(this.key);
+    this.ctx.cacheTokens?.delete(this.key);
+  }
+
+  /**
+   * Drop every cache entry NOT bound to the live token: they were healed on a
+   * page/context that has since been torn down, so reusing any of them would
+   * throw the same stale error. Falls back to clearing just our own key when no
+   * token map is present (backward compatible).
+   */
+  private invalidateDeadEntries(): void {
+    const tokens = this.ctx.cacheTokens;
+    if (!tokens) {
+      this.ctx.cache.delete(this.key);
+      return;
+    }
+    const live = this.pageToken();
+    for (const [k, tok] of tokens) {
+      if (tok !== live) {
+        this.ctx.cache.delete(k);
+        tokens.delete(k);
+      }
+    }
+  }
+
+  async invoke(method: string, args: unknown[]): Promise<unknown> {
+    const cached = this.cachedLocator();
 
     // Fast-miss detection. A Playwright action auto-waits the FULL action
     // timeout (often 30s) before failing, which would delay every heal until
@@ -355,18 +427,46 @@ export class HealingLocator {
       }
     }
 
+    const usingCache = cached !== undefined;
     const effective = cached ?? this.real;
     try {
       return await effective[method](...args);
     } catch (err) {
+      const cls = classifyError(err);
+
+      // STALE / context-restart while reusing a CACHED heal: that locator is
+      // bound to a page/execution context that has been torn down (reusing it
+      // throws "Target closed" / "Execution context was destroyed" / ...).
+      // INVALIDATE it (and any sibling entries on the now-dead context) and
+      // RE-RESOLVE on the CURRENT page — original locator first, then a fresh
+      // heal on the live context — instead of surfacing the stale error.
+      if (usingCache && cls === 'stale') {
+        this.invalidateStaleEntry();
+        this.invalidateDeadEntries();
+        try {
+          return await this.real[method](...args);
+        } catch (liveErr) {
+          if (!HEALABLE_METHODS.has(method)) throw liveErr;
+          const healed = await this.tryHeal(method, args);
+          if (healed.ok) return healed.value;
+          throw liveErr;
+        }
+      }
+
       if (!HEALABLE_METHODS.has(method)) throw err;
+
       let missing = false;
       try {
         missing = (await this.real.count()) === 0;
-      } catch {
+      } catch (countErr) {
+        // If even counting hits a stale/context-restart error, the context is
+        // dead — do NOT fabricate a heal against it. Surface the original error
+        // so the caller can re-attempt once the live context is back.
+        if (classifyError(countErr) === 'stale') throw err;
         missing = true;
       }
       if (!missing) throw err;
+
       const healed = await this.tryHeal(method, args);
       if (healed.ok) return healed.value;
       throw err;
@@ -376,7 +476,17 @@ export class HealingLocator {
   private async tryHeal(method: string, args: unknown[]): Promise<{ ok: boolean; value?: unknown }> {
     const { page, ranker, config } = this.ctx;
     const t0 = Date.now();
-    const candidates = await extractCandidates(page, config.maxCandidates, config.testIdAttribute);
+    let candidates: CandidateElement[];
+    try {
+      candidates = await extractCandidates(page, config.maxCandidates, config.testIdAttribute);
+    } catch (err) {
+      // Context torn down mid-heal: page.evaluate ran against a destroyed
+      // execution context. Abort the heal CLEANLY — never rank a dead DOM and
+      // never false-heal. The caller re-attempts on the live context (or
+      // rethrows the original error if nothing can be done).
+      if (classifyError(err) === 'stale') return { ok: false };
+      throw err;
+    }
     if (candidates.length === 0) return { ok: false };
 
     const meta = descriptorToMeta(this.desc, config.testIdAttribute);
@@ -395,7 +505,7 @@ export class HealingLocator {
     const { locator: healedLoc, label } = rebuildLocator(page, best.cand, this.desc, config);
     try {
       const value = await healedLoc[method](...args);
-      this.ctx.cache.set(this.key, healedLoc);
+      this.storeCache(healedLoc);
       const event: HealEvent = {
         timestamp: Date.now(),
         testId: config.testId,
