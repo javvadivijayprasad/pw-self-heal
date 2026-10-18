@@ -69,8 +69,10 @@ describe('classifyError — stale / context-restart detection', () => {
     expect(isStaleError(new Error('resolved to 0 elements'))).toBe(false);
   });
 
-  it('does NOT misclassify a real assertion / defect as stale (stays fatal)', () => {
-    expect(classifyError(new Error('expect(received).toBe(expected)'))).toBe('fatal');
+  it('classifies a real expect() assertion as assertion; a non-assertion defect stays fatal', () => {
+    // P0-1: assertion failures now get their own class (never 'stale', never
+    // auto-healed). A non-expect runtime defect remains fatal.
+    expect(classifyError(new Error('expect(received).toBe(expected)'))).toBe('assertion');
     expect(classifyError(new Error('TypeError: x is not a function'))).toBe('fatal');
     expect(isStaleError(new Error('boom'))).toBe(false);
   });

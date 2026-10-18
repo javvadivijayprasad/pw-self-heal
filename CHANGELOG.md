@@ -8,6 +8,116 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-18
+
+Driven by the attestqa integration's evaluation runs (Toolshop, Juice Shop):
+additive error-diagnosis and offline-extraction APIs so a downstream caller can
+tell assertion/loading failures from locator failures, inspect why, and rank
+candidates from saved HTML. No breaking changes.
+
+### Added
+
+- **Test identity on telemetry (`HealEvent.test`).** Heal events now carry an
+  optional `test?: { title?; titlePath?; file?; testId? }` populated from the
+  Playwright `TestInfo` available to the fixture / `wrapPage`. Lets consumers
+  JOIN heal events to Playwright test results without guessing from timestamps.
+  Each sub-field is guarded (cleanly absent in the imperative `wrapPage` path
+  with no test info); the identity lands in both `getHealingSummary()` and the
+  telemetry JSONL. New exported helper `testMetaFrom(testInfo)`. Backward
+  compatible (optional + additive).
+- **Stable outcome vocabulary (`HealOutcome`).** A new exported, documented
+  discriminated union — a SemVer 1.x contract consumers can `switch` on:
+  `{ kind: 'healed'; selector; score }`, `{ kind: 'belowThreshold'; score;
+  threshold }`, `{ kind: 'noCandidates' }`, and `{ kind: 'notHealable';
+  class }` (where `class` is the failure `ErrorClass`). Attached to
+  `HealResult.outcome` (set by the ranker to `healed` / `belowThreshold` /
+  `noCandidates`) and surfaced on `HealEvent.outcome` for recorded heals. The
+  `notHealable` variant is produced from a classified failure via the new
+  exported `notHealableOutcome(errorClass)` helper. Purely additive — the
+  existing `HealResult.healed: boolean` is unchanged.
+
+- **Assertion & loading error classes (`classifyError`).** `ErrorClass` gains two
+  additive members, `'assertion'` and `'loading'`, alongside the existing
+  `'stale' | 'healable' | 'retryable' | 'fatal'`. The classification precedence is
+  now **stale → healable → retryable → loading → assertion → fatal** (first match
+  wins):
+  - **`assertion`** — a Playwright `expect(...)` failure where the locator
+    RESOLVED but a value/text/class/attribute/count didn't match. Detected from a
+    `Received:` line and/or an `expect(` call paired with
+    `toHaveText|toBeTruthy|toHaveClass|toHaveCount|toHaveAttribute|toEqual|toBe`.
+    Never treated as healable: changing the locator cannot fix a value mismatch.
+    (The broad `waiting for locator` heal signal is suppressed for assertions,
+    while explicit zero-match phrases still heal.)
+  - **`loading`** — an assertion that failed because the element is still loading:
+    a `skeleton|placeholder|shimmer|loading|spinner` class on the element or an
+    ancestor, `aria-busy="true"`, or an empty element whose same-shape siblings
+    have text. Detected from the live DOM via the optional `page`, or from a
+    loading signal in the message alone when no DOM is available.
+  - **Backward compatible.** The old four classes are unchanged. Consumers that do
+    NOT explicitly handle `'assertion'`/`'loading'` should treat them as `'fatal'`
+    (surface them; never auto-heal or silently retry). The internal heal paths do
+    exactly this.
+- **`diagnose(err, page?)`.** A new async API that explains *why* an action or
+  assertion failed. Returns `{ class, selector?, expected?, received?, matched?,
+  stateElsewhere?, hint }` — the error class (incl. `'assertion'`/`'loading'`),
+  the parsed selector and `Expected:`/`Received:` values, how many elements the
+  selector resolves to now (`matched`, when a `page` is given), and a
+  one-sentence `hint` for a person or agent.
+- **`failedSelectorOf(message)`.** One standalone parser that extracts the failed
+  selector/locator from every Playwright message shape — `waiting for
+  locator('…')`, `Locator: getByRole('button', { name: 'Log in' })`, and
+  `locator.click: Timeout … waiting for getByTestId('x')`.
+- **`stateElsewhere` (P0-3).** When an assertion is about a class (`toHaveClass`)
+  or ARIA/checked state (`toHaveAttribute('aria-current'|'aria-selected'|
+  'aria-pressed'|'aria-expanded', …)`, `toBeChecked`) and a `page` is supplied,
+  `diagnose` searches up to 2 levels up and 2 levels down from the asserted
+  element for where that state actually lives and reports the nearest match as
+  `{ found, relation: 'parent' | 'child' | 'sibling' }`, with a concrete fix in
+  `hint` (e.g. *"`active` is on the parent `li.page-item.active`, not on the
+  `button` — assert on `page.locator('li.page-item.active')`"*).
+- New public exports from the package root: `diagnose`, `failedSelectorOf`,
+  `isAssertionMessage`, `messageHasLoadingSignal`, the widened `ErrorClass`, and
+  the `Diagnosis` / `StateElsewhere` types.
+- **`extractCandidatesFromHtml(html, opts?)` — offline candidate extraction
+  (P0-4).** Extract `CandidateElement`s from a *saved HTML string* parsed in
+  Node, for consumers that heal AFTER a run (when the live `page` is gone, e.g.
+  from HTML captured in the Playwright report). It applies the EXACT same rules
+  as the live `extractCandidates` — preferred-tag priority, structural-tag skip,
+  id dedupe, `maxCandidates` cap, and the identical per-field capture (`id`,
+  `class_name`, `parent_tag`, `dom_depth`, `sibling_count`, `value_attr`,
+  `name`, text, placeholder, aria-label, type, role, acc-name) — because both
+  paths now share ONE self-contained extraction program. Live and offline
+  extraction are pinned to byte-for-byte parity by test. Uses the optional,
+  dependency-light **`linkedom`** parser, loaded lazily (same pattern as
+  `onnxruntime-node`); if it is not installed a clear error is thrown:
+  *"extractCandidatesFromHtml requires the optional 'linkedom' package — npm
+  install linkedom"*.
+- **`captureDomOnFailure` fixture option (P0-4).** When set on the self-healing
+  config, on an action/assertion failure the wrapped page attaches the current
+  page HTML (`await page.content()`) as a Playwright test attachment named
+  `pw-self-heal-dom.html` (content-type `text/html`), captured at most once per
+  page. Wired through `withSelfHealing` → `wrapPage` (the fixture forwards its
+  `testInfo`), so consumers can read the saved DOM from the Playwright JSON
+  report and heal offline later with `extractCandidatesFromHtml`. Off by
+  default; purely additive.
+- **Richer candidate tags (P1-1).** `PREFERRED_TAGS` now also includes
+  `h1`–`h6`, `li`, and `img`, so assertions that target headings (product names
+  are often `h5`), list items (page markers on `li`), and images (product
+  images) surface as candidates. Structural-skip and id-dedupe behavior is
+  unchanged.
+- **Test-id attribute auto-detection (P1-1).** When the effective test-id
+  attribute is the default `data-testid` but it is absent from the page/HTML,
+  extraction auto-detects the first present alternative among `data-test`,
+  `data-cy`, `data-qa`, `data-test-id` and uses it for `test_id` capture,
+  emitting a one-time telemetry log naming the chosen attribute. An explicit
+  (non-default) `config.testIdAttribute` always wins and disables auto-detection.
+  Applied identically to the live and offline (HTML) extraction paths.
+- New public exports from the package root: `extractCandidatesFromHtml`,
+  `PREFERRED_TAGS`, `DEFAULT_TESTID_ATTRIBUTE`, `TESTID_FALLBACK_ATTRIBUTES`, and
+  the `WrapPageOptions` / `TestInfoLike` / `TestAttachment` types.
+- Added **`linkedom`** to `optionalDependencies`.
+
+
 ## [1.2.2] - 2026-10-10
 
 ### Fixed

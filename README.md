@@ -237,6 +237,50 @@ for (const heal of page.getHealingSummary().heals) {
 You can also convert a `HealResult` yourself with the exported helpers
 `scoresFromResult(result)` or `toLocatorScore(scoredCandidate, mode)`.
 
+### Test identity: `HealEvent.test`
+
+Every heal event carries an optional `test` object copied from the Playwright
+`TestInfo` available to the fixture (and to `wrapPage` when you forward
+`testInfo`). It lets you JOIN heal events to Playwright test results without
+guessing from timestamps:
+
+```ts
+interface HealEventTest {
+  title?: string;        // testInfo.title
+  titlePath?: string[];  // testInfo.titlePath
+  file?: string;         // testInfo.file
+  testId?: string;       // testInfo.testId
+}
+```
+
+Each sub-field is guarded, so `test` is cleanly ABSENT in the imperative
+`wrapPage` path when no test info is supplied. It appears in both
+`getHealingSummary()` and the telemetry JSONL.
+
+### Outcome vocabulary: `HealOutcome` (stable 1.x contract)
+
+`HealOutcome` is a **frozen, documented discriminated union** you can `switch`
+on across the entire **1.x** line. Its four members and their payloads are a
+SemVer contract — they only ever change additively:
+
+```ts
+type HealOutcome =
+  | { kind: 'healed'; selector: string; score: number }      // candidate accepted
+  | { kind: 'notHealable'; class: ErrorClass }               // assertion/loading/stale/fatal
+  | { kind: 'belowThreshold'; score: number; threshold: number } // best candidate too weak
+  | { kind: 'noCandidates' };                                // extraction found nothing
+```
+
+- `HealResult.outcome` is set by the ranker to `healed`, `belowThreshold`, or
+  `noCandidates`.
+- `HealEvent.outcome` is attached to recorded heals (always `kind: 'healed'`).
+- `notHealable` is produced from a classified failure via the exported
+  `notHealableOutcome(errorClass)` helper (returns `null` for the locator-miss
+  classes `healable` / `retryable`, which proceed to ranking).
+
+This is purely additive: the pre-existing `HealResult.healed: boolean` is
+unchanged.
+
 Every heal is also appended to `.pwheal/heal-events.jsonl`. Summarize a run:
 
 ```bash

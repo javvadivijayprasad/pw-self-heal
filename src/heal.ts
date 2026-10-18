@@ -77,12 +77,65 @@ export interface HealingSummary {
   heals: HealEvent[];
 }
 
+/** One Playwright test attachment (the subset we produce). */
+export interface TestAttachment {
+  body?: string | Buffer;
+  path?: string;
+  contentType?: string;
+}
+
+/**
+ * Minimal slice of Playwright's `TestInfo` we depend on for
+ * {@link SelfHealConfig.captureDomOnFailure}. Playwright's real `testInfo`
+ * satisfies this structurally.
+ */
+export interface TestInfoLike {
+  attach(name: string, options: TestAttachment): Promise<void> | void;
+  /** Playwright TestInfo identity fields (all optional; guarded at read). */
+  title?: string;
+  titlePath?: string[];
+  file?: string;
+  testId?: string;
+}
+
+/**
+ * Copy the Playwright test identity off a {@link TestInfoLike} into the shape
+ * carried by {@link HealEvent.test}. Each field is guarded (the imperative
+ * `wrapPage` path may pass no test info, or a partial object). Returns
+ * `undefined` when nothing usable is present, so the `test` field stays cleanly
+ * ABSENT rather than an empty object.
+ */
+export function testMetaFrom(ti?: TestInfoLike): HealEvent['test'] | undefined {
+  if (!ti) return undefined;
+  const t: NonNullable<HealEvent['test']> = {};
+  if (typeof ti.title === 'string') t.title = ti.title;
+  if (Array.isArray(ti.titlePath)) t.titlePath = ti.titlePath;
+  if (typeof ti.file === 'string') t.file = ti.file;
+  if (typeof ti.testId === 'string') t.testId = ti.testId;
+  return Object.keys(t).length > 0 ? t : undefined;
+}
+
+/** Runtime handles the fixture can forward to {@link wrapPage}. */
+export interface WrapPageOptions {
+  /** Forwarded from the Playwright fixture; enables `captureDomOnFailure`. */
+  testInfo?: TestInfoLike;
+}
+
+/** Page surface we need for DOM capture (Playwright's `Page.content()`). */
+interface ContentPage {
+  content(): Promise<string>;
+}
+
 /** Wrap a Playwright Page with self-healing. Returns a proxy of the same shape. */
 export function wrapPage<T extends EvaluatablePage>(
   page: T,
   userConfig: Partial<SelfHealConfig> = {},
+  options: WrapPageOptions = {},
 ): T & { getHealingSummary(): HealingSummary; setTestId(id: string): void } {
   const config: SelfHealConfig = { ...DEFAULT_CONFIG, ...userConfig };
+  // Test identity (P1-2), captured once and threaded onto every HealEvent so
+  // consumers can join heal events to Playwright test results.
+  const testMeta = testMetaFrom(options.testInfo);
   const ranker = new Ranker(config);
   const healCache = new Map<string, string>();
   const healingLog: HealEvent[] = [];
@@ -92,6 +145,25 @@ export function wrapPage<T extends EvaluatablePage>(
     healingLog.push(event);
     appendHealEvent(config.telemetry, event);
   };
+
+  // --- captureDomOnFailure ---------------------------------------------------
+  // On a failure that is about to propagate, snapshot the live page HTML as a
+  // Playwright test attachment so consumers can heal OFFLINE later (see
+  // extractCandidatesFromHtml). At most once per wrapped page to avoid spam.
+  let domCaptured = false;
+  async function captureDomOnFailure(): Promise<void> {
+    if (!config.captureDomOnFailure || !options.testInfo || domCaptured) return;
+    domCaptured = true;
+    try {
+      const html = await (page as unknown as ContentPage).content();
+      await options.testInfo.attach('pw-self-heal-dom.html', {
+        body: html,
+        contentType: 'text/html',
+      });
+    } catch {
+      /* best-effort; never fail a test over DOM capture */
+    }
+  }
 
   async function scrollInto(selector: string): Promise<void> {
     if (!config.scrollIntoView) return;
@@ -116,7 +188,14 @@ export function wrapPage<T extends EvaluatablePage>(
       return await action(effective, ...args);
     } catch (err) {
       const cls = classifyError(err);
-      if (cls === 'fatal') throw err;
+      // 'assertion'/'loading' (P0-1) are expect() outcomes, not action faults, so
+      // they never arise on this selector-action path; but if one ever does, it is
+      // treated as fatal — never auto-healed (a value mismatch is not a locator
+      // problem). See errors.ts for the full precedence + the diagnose() API.
+      if (cls === 'fatal' || cls === 'assertion' || cls === 'loading') {
+        await captureDomOnFailure();
+        throw err;
+      }
 
       // STALE / context-restart: destroyed execution context, closed/crashed
       // page, or detached frame/element. A cached healed SELECTOR may have been
@@ -172,7 +251,10 @@ export function wrapPage<T extends EvaluatablePage>(
       const meta = parseLocator(selector);
       const result = await ranker.rank(meta, candidates);
 
-      if (!result.healed || !result.suggestedLocator) throw err;
+      if (!result.healed || !result.suggestedLocator) {
+        await captureDomOnFailure();
+        throw err;
+      }
 
       const newSelector = result.suggestedLocator;
       const best = result.bestCandidate as ScoredCandidate;
@@ -190,6 +272,12 @@ export function wrapPage<T extends EvaluatablePage>(
           elapsedMs: result.elapsedMs,
           via: 'string',
           scores: scoresFromResult(result),
+          outcome: result.outcome ?? {
+            kind: 'healed',
+            selector: newSelector,
+            score: best.finalScore,
+          },
+          ...(testMeta ? { test: testMeta } : {}),
         };
         record(event);
         if (config.logHeals) {
@@ -203,6 +291,7 @@ export function wrapPage<T extends EvaluatablePage>(
         }
         return out;
       } catch {
+        await captureDomOnFailure();
         throw err;
       }
     }
@@ -226,6 +315,7 @@ export function wrapPage<T extends EvaluatablePage>(
     // itself: stable on the normal path, so cache reuse pays ~zero overhead.
     cacheTokens: new Map(),
     getPageToken: () => page,
+    testMeta,
   };
   const factories = makeLocatorFactories(ctx) as Record<string, unknown>;
   for (const name of LOCATOR_FACTORIES) proxy[name] = factories[name];

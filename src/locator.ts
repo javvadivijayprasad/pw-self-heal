@@ -75,6 +75,12 @@ export interface HealContext {
    * degrades to force-dropping only the failing key on a stale error.
    */
   cacheTokens?: Map<string, unknown>;
+  /**
+   * Optional Playwright test identity (P1-2), copied from the `TestInfo`
+   * available to `wrapPage`/the fixture and threaded onto every {@link
+   * HealEvent.test}. Absent in the imperative path with no test info.
+   */
+  testMeta?: HealEvent['test'];
 }
 
 const ROLE_TO_TAG: Record<string, string> = {
@@ -506,12 +512,13 @@ export class HealingLocator {
     try {
       const value = await healedLoc[method](...args);
       this.storeCache(healedLoc);
+      const score = Math.round(best.score * 1e6) / 1e6;
       const event: HealEvent = {
         timestamp: Date.now(),
         testId: config.testId,
         original: descLabel(this.desc),
         healed: label,
-        score: Math.round(best.score * 1e6) / 1e6,
+        score,
         mode: result.mode,
         candidatesEvaluated: candidates.length,
         elapsedMs: Date.now() - t0,
@@ -519,6 +526,12 @@ export class HealingLocator {
         // Top-N (N = config.topK) ranking decisions, best-first, for downstream
         // logging/dashboards. Purely additive; existing consumers unaffected.
         scores: scoresFromResult(result),
+        // The combined model+intent score cleared the threshold and the action
+        // succeeded against the rebuilt locator — a `healed` outcome. Built
+        // directly (not from result.outcome) because the intent boost can carry
+        // a heal the model-only ranking scored below threshold.
+        outcome: { kind: 'healed', selector: label, score },
+        ...(this.ctx.testMeta ? { test: this.ctx.testMeta } : {}),
       };
       this.ctx.record(event);
       if (config.logHeals) {

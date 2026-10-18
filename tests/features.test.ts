@@ -71,6 +71,6 @@ describe('classifyError', () => {
   it('classifies healable / retryable / fatal', () => {
     expect(classifyError(new Error('waiting for locator("#x")'))).toBe('healable');
     expect(classifyError(new Error('element is not visible'))).toBe('retryable');
-    expect(classifyError(new Error('expect(received).toBe(expected)'))).toBe('fatal');
+    expect(classifyError(new Error('expect(received).toBe(expected)'))).toBe('assertion');
   });
 });

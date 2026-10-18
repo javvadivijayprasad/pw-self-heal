@@ -123,3 +123,33 @@ describe('community docs (JOSS W1)', () => {
     });
   });
 });
+
+describe('model card (JOSS W6)', () => {
+  const body = read('docs/model-card.md');
+
+  it('exists and is substantive', () => {
+    expect(body.length).toBeGreaterThan(1500);
+    expect(body.trimStart().startsWith('#')).toBe(true);
+  });
+
+  it('covers the required model-card sections', () => {
+    for (const section of [
+      'Model details',
+      '17 features',
+      'Intended use',
+      'Training',
+      'Metrics',
+      'Limitations',
+      'Ethical',
+      'Citation',
+    ]) {
+      expect(body).toContain(section);
+    }
+  });
+
+  it('states the headline metrics and provenance', () => {
+    expect(body).toContain('0.9993'); // GB AUC
+    expect(body).toContain('68.63'); // hybrid HSR
+    expect(body).toContain('10.5281/zenodo.19684439'); // Zenodo DOI
+  });
+});

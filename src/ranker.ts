@@ -10,6 +10,7 @@ import { computeFeatures, featureArray, heuristicScore } from './features';
 import {
   CandidateElement,
   HYBRID_ALPHA,
+  HealOutcome,
   HealResult,
   LocatorMetadata,
   LocatorScore,
@@ -97,6 +98,7 @@ export class Ranker {
         thresholdUsed: threshold,
         candidatesEvaluated: 0,
         elapsedMs: Date.now() - t0,
+        outcome: { kind: 'noCandidates' },
       };
     }
 
@@ -134,6 +136,14 @@ export class Ranker {
     const best = scored[0];
     const healed = !!best && best.finalScore >= threshold;
 
+    // Stable outcome vocabulary (SemVer 1.x): a ranking pass with candidates is
+    // either an accepted heal or a best-candidate-below-threshold miss. The
+    // `noCandidates` case returned earlier; `notHealable` is produced by the
+    // heal paths (the ranker never sees the failure class).
+    const outcome: HealOutcome = healed
+      ? { kind: 'healed', selector: suggestLocator(best.candidate), score: best.finalScore }
+      : { kind: 'belowThreshold', score: best ? best.finalScore : 0, threshold };
+
     return {
       healed,
       bestCandidate: healed ? best : undefined,
@@ -144,6 +154,7 @@ export class Ranker {
       thresholdUsed: threshold,
       candidatesEvaluated: candidates.length,
       elapsedMs: Date.now() - t0,
+      outcome,
     };
   }
 }

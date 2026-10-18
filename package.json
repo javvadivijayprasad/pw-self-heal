@@ -1,6 +1,6 @@
 {
   "name": "@vijaypjavvadi/pw-self-heal",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "In-process self-healing locators for Playwright. Ranks DOM candidates with a trained 17-feature model (no server, no Python). Heuristic, ML (ONNX), and hybrid modes.",
   "type": "module",
   "main": "dist/index.js",
@@ -71,7 +71,8 @@
     }
   },
   "optionalDependencies": {
-    "onnxruntime-node": "^1.18.0"
+    "onnxruntime-node": "^1.18.0",
+    "linkedom": "^0.18.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.45.0",

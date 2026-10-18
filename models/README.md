@@ -1,5 +1,8 @@
 # Models
 
+> For architecture, features, training data, metrics, intended use, and
+> limitations, see the [**model card**](../docs/model-card.md).
+
 This directory holds the ONNX-exported ranking models used by `ml` and `hybrid`
 modes. They are **not** committed in source form; generate them from the trained
 pickles with `scripts/export-onnx.py`:

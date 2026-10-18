@@ -1,5 +1,7 @@
 /** Public types for @vijaypjavvadi/pw-self-heal. */
 
+import type { ErrorClass } from './errors';
+
 export type RankerMode = 'heuristic' | 'ml' | 'hybrid';
 export type Algorithm = 'gb' | 'xgb';
 
@@ -132,6 +134,30 @@ export interface LocatorScore {
   rank: number;
 }
 
+/**
+ * Stable, documented outcome vocabulary for a heal attempt (SemVer 1.x
+ * contract). Downstream consumers may `switch` on `kind` across the whole 1.x
+ * line; the four members and their payloads are frozen and only ever extended
+ * additively.
+ *
+ *  - `healed`         a candidate cleared the confidence threshold and the
+ *                     action succeeded against it; carries the rebuilt
+ *                     `selector` and the accepted `score`.
+ *  - `belowThreshold` candidates were found and ranked, but the BEST one scored
+ *                     under the confidence `threshold`; carries both numbers.
+ *  - `noCandidates`   candidate extraction found nothing to rank.
+ *  - `notHealable`    the failure was not a locator miss (assertion / loading /
+ *                     stale / fatal), so changing the locator cannot help;
+ *                     carries the failure {@link ErrorClass}.
+ *
+ * Purely additive: the pre-existing `HealResult.healed: boolean` is unchanged.
+ */
+export type HealOutcome =
+  | { kind: 'healed'; selector: string; score: number }
+  | { kind: 'notHealable'; class: ErrorClass }
+  | { kind: 'belowThreshold'; score: number; threshold: number }
+  | { kind: 'noCandidates' };
+
 export interface HealResult {
   healed: boolean;
   suggestedLocator?: string;
@@ -142,6 +168,13 @@ export interface HealResult {
   thresholdUsed: number;
   candidatesEvaluated: number;
   elapsedMs: number;
+  /**
+   * Stable {@link HealOutcome} for this ranking pass (SemVer 1.x contract).
+   * Set by the ranker to `healed` / `belowThreshold` / `noCandidates`. The
+   * `notHealable` variant is produced by the heal paths (not the ranker, which
+   * never sees the failure). Optional + additive; `healed: boolean` is unchanged.
+   */
+  outcome?: HealOutcome;
 }
 
 export interface HealEvent {
@@ -162,6 +195,21 @@ export interface HealEvent {
    * telemetry JSONL and `getHealingSummary()`.
    */
   scores?: LocatorScore[];
+  /**
+   * Identity of the Playwright test that triggered this heal, copied from the
+   * `TestInfo` available to the fixture / `wrapPage`. Lets consumers (e.g.
+   * attestqa) JOIN heal events to Playwright test results without guessing from
+   * timestamps. Each sub-field is guarded (absent in the imperative `wrapPage`
+   * path when no test info is supplied). Optional + backward compatible; lands
+   * in both the telemetry JSONL and `getHealingSummary()`.
+   */
+  test?: { title?: string; titlePath?: string[]; file?: string; testId?: string };
+  /**
+   * Stable {@link HealOutcome} for this heal (SemVer 1.x contract). Present on
+   * recorded events (a heal was attempted and succeeded, so `kind: 'healed'`).
+   * Optional + additive.
+   */
+  outcome?: HealOutcome;
 }
 
 export interface SelfHealConfig {
@@ -183,6 +231,15 @@ export interface SelfHealConfig {
   testIdAttribute: string;
   /** Per-action timeout (ms) before treating a locator as missing. */
   healTimeout: number;
+  /**
+   * When true, on an action/assertion failure attach the current page HTML
+   * (`await page.content()`) as a Playwright test attachment named
+   * `pw-self-heal-dom.html` (content-type `text/html`). Off by default. Lets
+   * consumers heal OFFLINE later from the saved HTML in the Playwright JSON
+   * report (see {@link extractCandidatesFromHtml}). Requires the fixture to
+   * forward its `testInfo` to `wrapPage`.
+   */
+  captureDomOnFailure?: boolean;
   /**
    * Ordered fallback strategies for expressing a healed locator. After the
    * original locator's own kind is tried first (intent preservation), the
@@ -210,6 +267,7 @@ export const DEFAULT_CONFIG: SelfHealConfig = {
   logHeals: true,
   testIdAttribute: 'data-testid',
   healTimeout: 5000,
+  captureDomOnFailure: false,
   fallbackStrategy: ['role', 'text', 'testid', 'xpath'],
 };
 

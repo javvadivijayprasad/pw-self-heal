@@ -7,6 +7,7 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: 'node18',
-  // onnxruntime-node is optional and loaded dynamically; never bundle it.
-  external: ['onnxruntime-node', '@playwright/test'],
+  // onnxruntime-node and linkedom are optional and loaded dynamically; never
+  // bundle them.
+  external: ['onnxruntime-node', 'linkedom', '@playwright/test'],
 });
