@@ -46,14 +46,16 @@ function main(): void {
   const inPath = argValue(rest, '--in') || '.pwheal/heal-events.jsonl';
 
   if (cmd !== 'report') {
-    console.log('Usage: pw-self-heal report [--in <heal-events.jsonl>] [--html [out.html]]');
+    console.log('Usage: pw-self-heal report [--in <heal-events.jsonl>] [--html [out.html]] [--json]');
     process.exitCode = cmd ? 1 : 0;
     return;
   }
 
   const events = loadEvents(inPath);
   const htmlArg = argValue(rest, '--html');
-  if (htmlArg !== undefined) {
+  if (rest.includes('--json')) {
+    console.log(JSON.stringify(summarize(events), null, 2));
+  } else if (htmlArg !== undefined) {
     const out = htmlArg || '.pwheal/report.html';
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, renderHtmlReport(events), 'utf-8');
