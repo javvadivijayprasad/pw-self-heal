@@ -287,6 +287,12 @@ Every heal is also appended to `.pwheal/heal-events.jsonl`. Summarize a run:
 pw-self-heal report --in .pwheal/heal-events.jsonl
 ```
 
+For CI dashboards or scripts, `--json` prints the summary object as JSON to stdout instead of the table:
+
+```bash
+pw-self-heal report --in .pwheal/heal-events.jsonl --json
+```
+
 ## Configuration
 
 | Option | Default | Description |
