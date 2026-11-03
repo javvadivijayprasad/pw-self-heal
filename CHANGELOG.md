@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-03
+
+### Added
+
+- `pw-self-heal report --json` — prints the run summary as JSON to stdout
+  (pipeable into CI dashboards and scripts) instead of the human-readable table;
+  the default output and `--html` are unchanged. Thanks to **@jay23606** for the
+  contribution ([#5](https://github.com/javvadivijayprasad/pw-self-heal/pull/5),
+  closes [#4](https://github.com/javvadivijayprasad/pw-self-heal/issues/4)).
+
 ## [1.3.1] - 2026-11-03
 
 ### Fixed
