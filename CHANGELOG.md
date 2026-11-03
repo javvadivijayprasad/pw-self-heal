@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-03
+
+### Fixed
+
+- CI: the offline-extraction tests (`tests/offline-extraction.test.ts`) no longer
+  fail on **Node 18**. `linkedom` (the optional dependency that powers
+  `extractCandidatesFromHtml`) requires Node >= 20, so npm skips installing it on
+  Node 18 — the suites that depend on it now `skipIf` it's absent rather than
+  throwing. The live-extractor and fixture suites still run on all Node versions.
+  The core package remains supported on Node >= 18; only the optional offline-HTML
+  path needs Node >= 20 + `linkedom`.
+
 ## [1.3.0] - 2026-10-18
 
 Driven by the attestqa integration's evaluation runs (Toolshop, Juice Shop):

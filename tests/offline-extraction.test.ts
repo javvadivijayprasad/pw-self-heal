@@ -20,6 +20,20 @@ import {
 import { wrapPage } from '../src/heal';
 import { withSelfHealing } from '../src/fixture';
 import type { CandidateElement } from '../src/types';
+import { createRequire } from 'node:module';
+
+// `linkedom` is an OPTIONAL dependency (it powers the offline HTML path and
+// requires Node >= 20, so npm skips installing it on Node 18). The suites that
+// call `extractCandidatesFromHtml` are skipped when it isn't present, rather than
+// failing — the live-extractor and fixture suites still run everywhere.
+const hasLinkedom = (() => {
+  try {
+    createRequire(import.meta.url).resolve('linkedom');
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 /**
  * A fake Playwright `Page` whose `evaluate` runs the serialized extraction
@@ -73,7 +87,7 @@ const wrapDoc = (body: string) => `<!doctype html><html><body>${body}</body></ht
 const byId = (cands: CandidateElement[], id: string): CandidateElement | undefined =>
   cands.find((c) => c.element_id === id);
 
-describe('extractCandidatesFromHtml — offline parity with the live extractor', () => {
+describe.skipIf(!hasLinkedom)('extractCandidatesFromHtml — offline parity with the live extractor', () => {
   it('returns the SAME CandidateElement[] as the live extractor for the same HTML', async () => {
     const live = await extractCandidates(snapshot(SHOP_HTML));
     const offline = await extractCandidatesFromHtml(wrapDoc(SHOP_HTML));
@@ -109,7 +123,7 @@ describe('extractCandidatesFromHtml — offline parity with the live extractor',
   });
 });
 
-describe('P1-1 — richer candidate tags', () => {
+describe.skipIf(!hasLinkedom)('P1-1 — richer candidate tags', () => {
   it('captures an h5 product title and an li page item as candidates (offline)', async () => {
     const cands = await extractCandidatesFromHtml(wrapDoc(SHOP_HTML));
 
@@ -133,7 +147,7 @@ describe('P1-1 — richer candidate tags', () => {
   });
 });
 
-describe('P1-1 — test-id attribute auto-detection', () => {
+describe.skipIf(!hasLinkedom)('P1-1 — test-id attribute auto-detection', () => {
   const AUTO_HTML = `
     <button id="b1" data-test="login-btn">Login</button>
     <input id="i1" data-qa="user-field" name="user">
